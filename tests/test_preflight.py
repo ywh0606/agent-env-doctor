@@ -31,10 +31,14 @@ def test_resolve_task_accepts_task_id_from_checkout(tmp_path, monkeypatch):
     assert resolve_task("hello-world") == task
 
 
-def test_docker_failure_prefers_docker_info_as_reproduction(tmp_path):
+def test_docker_failure_prefers_docker_info_as_reproduction(tmp_path, monkeypatch):
     (tmp_path / "task.yaml").write_text("instruction: hello", encoding="utf-8")
     (tmp_path / "Dockerfile").write_text("FROM alpine:3.20\n", encoding="utf-8")
     (tmp_path / "tests").mkdir()
+    monkeypatch.setattr(
+        "agent_env_doctor.preflight._docker_available",
+        lambda: (False, "Docker CLI was not found on PATH."),
+    )
 
     report = check_task(str(tmp_path))
 
