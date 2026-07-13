@@ -1,0 +1,62 @@
+name: Bug report
+description: Report unexpected behavior in agent-env-doctor.
+title: "bug: "
+labels:
+  - bug
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a problem. Do not include credentials, tokens, private task content, or unredacted logs.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for a similar report.
+          required: true
+        - label: I removed secrets and sensitive task data from this report.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and why it is unexpected.
+      placeholder: The command reported INFRA_FAILURE, but the evidence indicates the verifier could not start.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+      description: Include the expected verdict or report behavior when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide redacted task metadata, commands, and steps needed to reproduce the behavior.
+      placeholder: |
+        1. Run ...
+        2. Analyze ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Relevant evidence
+      description: Share only redacted logs, report excerpts, or paths that help explain the result.
+  - type: input
+    id: version
+    attributes:
+      label: agent-env-doctor version or commit
+      placeholder: e.g. 0.1.0a1 or abc1234
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Python version, Docker version, and Terminal-Bench revision when available.
+      placeholder: e.g. macOS 15, Python 3.11, Docker 27, Terminal-Bench abc1234

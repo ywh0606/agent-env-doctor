@@ -1,0 +1,44 @@
+name: Feature request
+description: Propose an improvement that fits agent-env-doctor's Terminal-Bench-focused scope.
+title: "feature: "
+labels:
+  - enhancement
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project is pre-alpha and initially supports only the official Terminal-Bench task format. Do not include private task data or credentials.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for a similar request.
+          required: true
+        - label: This request is compatible with the current Terminal-Bench-focused MVP scope.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the evaluation or diagnostic problem, including who encounters it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the desired input, output, verdict impact, and any evidence the tool should inspect.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence or prior art
+      description: Link public references or provide redacted examples that show why this behavior is useful.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Explain current workarounds or other approaches you evaluated.
