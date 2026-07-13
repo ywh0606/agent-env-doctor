@@ -40,10 +40,16 @@ class DiagnosticReport(BaseModel):
     evidence: list[str] = Field(default_factory=list)
     reproduce: str | None = None
     source_directory: str | None = None
+    artifacts_directory: str | None = None
 
     @classmethod
     def from_path(
-        cls, path: Path, verdict: Verdict, summary: str, findings: list[Finding]
+        cls,
+        path: Path,
+        verdict: Verdict,
+        summary: str,
+        findings: list[Finding],
+        artifacts_directory: Path | None = None,
     ) -> "DiagnosticReport":
         evidence = sorted({item for finding in findings for item in finding.evidence})
         reproduce = next(
@@ -62,4 +68,5 @@ class DiagnosticReport(BaseModel):
             evidence=evidence,
             reproduce=reproduce,
             source_directory=str(path),
+            artifacts_directory=str(artifacts_directory) if artifacts_directory else None,
         )

@@ -26,6 +26,8 @@ def markdown(report: DiagnosticReport) -> str:
     if report.evidence:
         lines.extend(["", "## Evidence", ""])
         lines.extend(f"- `{path}`" for path in report.evidence)
+    if report.artifacts_directory:
+        lines.extend(["", "## Artifacts", "", f"- `{report.artifacts_directory}`"])
     if report.reproduce:
         lines.extend(["", "## Reproduce", "", "```bash", report.reproduce, "```"])
     return "\n".join(lines) + "\n"

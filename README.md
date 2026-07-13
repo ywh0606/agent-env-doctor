@@ -12,7 +12,7 @@ It will inspect a Terminal-Bench task before evaluation, analyze artifacts after
 
 ## Status
 
-This repository is **pre-alpha**. A local Python CLI is available from source for early feedback. Its checks and artifact parsers are deliberately conservative, cover only part of the planned MVP, and may change before `0.1.0`. Do not use a pre-alpha verdict as the sole basis for a published benchmark result.
+This repository is **pre-alpha**. Version `0.2.0a1` is available from source for early feedback. Its checks and artifact parsers are deliberately conservative, cover only part of the planned MVP, and may change before the first stable release. Do not use a pre-alpha verdict as the sole basis for a published benchmark result.
 
 The project is licensed under [Apache-2.0](LICENSE).
 
@@ -24,10 +24,23 @@ python -m venv .venv
 
 # Run from a Terminal-Bench checkout, or pass an absolute task directory.
 .venv/bin/agent-env-doctor check hello-world
+
+# Opt in to an image build and a shell smoke container.
+.venv/bin/agent-env-doctor check hello-world --build --artifacts-dir artifacts/doctor
+
+# Also verify commands inside the built image. Repeat --require-command as needed.
+.venv/bin/agent-env-doctor check hello-world --build \
+  --require-command pytest \
+  --require-command git
+
+# Check local bind availability for required host ports. Repeat --require-port as needed.
+.venv/bin/agent-env-doctor check hello-world \
+  --require-port 3000 \
+  --require-port 8080
 .venv/bin/agent-env-doctor analyze /path/to/agent-run --format json
 ```
 
-`check` currently validates task structure, Dockerfile/test asset presence, and Docker CLI/daemon availability. `analyze` currently recognizes JUnit XML, JSON status fields, and selected infrastructure/verifier log signals. It does not yet build images, start containers, or execute verifier smoke tests.
+By default, `check` validates task structure, Dockerfile/test asset presence, Docker CLI/daemon availability, host disk/CPU conditions, and any requested local port bindings. The static checks do not build an image or start a container. With `--build`, it builds the task image, starts a shell smoke container with `--network none`, and can verify each requested `--require-command` inside that image. `analyze` recognizes JUnit XML, JSON status fields, and selected infrastructure/verifier log signals. It collects evidence before classifying it, with the precedence `INFRA_FAILURE`, `VERIFIER_FAILURE`, `AGENT_FAILURE`, `READY`, then `INCONCLUSIVE`; it scans at most 1 MB from each text log.
 
 ## The Problem
 
@@ -79,13 +92,21 @@ Terminal-Bench task + local Docker environment
 2. **Analysis** classifies the outcome using task metadata, container logs, verifier results, and run artifacts.
 3. **Reporting** records the verdict, supporting evidence, and a minimal reproduction command.
 
-## Planned CLI Contract
+## CLI Contract
 
-The following pre-alpha interfaces are available from source. Their behavior may change before `0.1.0`:
+The following pre-alpha interfaces are available from source. Their behavior may change before the first stable release:
 
 ```bash
-# Check a Terminal-Bench task and its local execution environment.
+# Run static checks only (the default).
 agent-env-doctor check <task-id-or-directory>
+
+# Opt in to Docker build and shell smoke checks.
+agent-env-doctor check <task-id-or-directory> --build \
+  [--build-timeout <seconds>] \
+  [--artifacts-dir <directory>] \
+  [--keep-image] \
+  [--require-command <command>]... \
+  [--require-port <port>]...
 
 # Analyze a completed agent run directory.
 agent-env-doctor analyze <run-directory>
@@ -96,7 +117,9 @@ agent-env-doctor report <run-directory> --format markdown|json
 
 These commands do not execute an agent. They inspect task and run artifacts, then surface whether the result can be trusted as an agent evaluation.
 
-## Planned Verdicts
+`--build` is intentionally opt-in because it executes local Docker work. `--artifacts-dir`, `--keep-image`, and `--require-command` require `--build`; each `--require-command` value is one executable name or path. Build and smoke output is written to `--artifacts-dir` when supplied. The temporary image is removed after the check by default; pass `--keep-image` to retain it for investigation. `--build-timeout` bounds each Docker operation, and `--require-command` may be repeated to check commands in the smoke container. `--require-port` may be repeated and tests whether each port can be bound locally on `127.0.0.1`; it does not start a service. Smoke containers run with `--network none`, but Docker image builds may require network access.
+
+## Verdicts
 
 | Verdict | Meaning |
 | --- | --- |
@@ -113,71 +136,33 @@ Implemented in the pre-alpha release:
 
 - Readable `task.yaml`, a non-empty `instruction`, a Dockerfile, and test asset presence.
 - Docker CLI and daemon availability.
+- Host disk and CPU checks; low disk capacity is reported as a warning.
+- Optional Docker image build and shell smoke container checks through `check --build`.
+- Optional repeated command checks inside the built image through `--require-command`.
+- Optional repeated local host-port bind checks through `--require-port`.
+- Smoke containers run with Docker networking disabled (`--network none`).
+- Captured Docker build and smoke output when `--artifacts-dir` is supplied.
+- Temporary build-image cleanup by default, with `--keep-image` available for debugging.
 - JUnit XML, JSON status fields, and selected text-log signals for attribution.
 - Markdown or JSON reports with evidence paths and a Docker build reproduction command when available.
 
 Planned but not yet implemented:
 
-- Docker daemon availability, image build, and container startup.
 - Task files, volume mounts, permissions, and required environment variables.
-- Host resources such as disk, memory, CPU, and required ports.
+- Host memory checks.
 - Task network expectations and observable network failures.
-- Required commands and runtime dependencies in the task image.
 - A verifier smoke test independent of an agent run.
-- JUnit XML, JSON/JSONL results, Docker logs, and task artifacts for attribution.
+- JSONL results, Docker logs, and additional task artifacts for attribution.
 
-## Example Output
+## Current Implementation
 
-The following is illustrative output from the current report schema; exact wording may change during pre-alpha:
-
-```text
-Task: repair-ci-config
-Verdict: BLOCKED
-
-[PASS] Required task files are present
-[PASS] Found Dockerfile
-[PASS] Found tests directory
-[FAIL] Docker CLI was not found on PATH
-
-Why this is not an agent failure:
-  Docker is unavailable, so no agent received a runnable environment.
-
-Reproduce:
-  docker info
-
-Evidence:
-  tasks/repair-ci-config/task.yaml
-```
-
-## Illustrative GitHub Actions Summary
-
-This is a planned CI summary format; GitHub Actions publishing is not implemented yet:
-
-```markdown
-## agent-env-doctor: evaluation attribution
-
-| Verdict | Tasks |
-| --- | ---: |
-| READY | 76 |
-| BLOCKED | 8 |
-| VERIFIER_FAILURE | 4 |
-| AGENT_FAILURE | 12 |
-
-Agent score: 42 / 76 evaluable tasks (55.3%)
-
-Top blocking cause: Docker daemon unavailable on 5 evaluation workers.
-Evidence: `artifacts/agent-env-doctor/report.json`
-```
-
-## Technical Direction
-
-The MVP is expected to be a local-first Python CLI:
+This pre-alpha is a local-first Python CLI built with:
 
 - [Typer](https://typer.tiangolo.com/) for the command-line interface.
-- [Rich](https://rich.readthedocs.io/) for terminal reports.
 - [Pydantic](https://docs.pydantic.dev/) for task, run, and report models.
-- [Docker SDK for Python](https://docker-py.readthedocs.io/) for environment inspection.
-- Standard XML parsing or a JUnit parser for result files.
+- [PyYAML](https://pyyaml.org/) for task metadata.
+- A small subprocess-based Docker CLI boundary for builds, smoke checks, and cleanup.
+- Standard-library XML parsing for JUnit result files.
 - `pytest` for the tool's own test suite.
 
 The report format should remain portable and local: human-readable Markdown plus machine-readable JSON. Cloud collection, credentials, and hosted dashboards are out of scope for v1.
@@ -185,7 +170,8 @@ The report format should remain portable and local: human-readable Markdown plus
 ## Roadmap
 
 - [x] Define a local Terminal-Bench task-directory adapter and generic run-artifact adapter.
-- [ ] Implement Docker image builds, container startup, mounts, resources, dependencies, and verifier smoke tests.
+- [x] Add opt-in Docker image builds, isolated shell smoke containers, required-command/port checks, and build artifacts.
+- [ ] Implement mounts, permissions, environment checks, host memory, network expectations, and verifier smoke tests.
 - [x] Implement conservative evidence-based verdict classification.
 - [x] Emit terminal, JSON, and Markdown reports.
 - [ ] Publish a GitHub Actions summary from CI.
@@ -194,6 +180,8 @@ The report format should remain portable and local: human-readable Markdown plus
 ## Privacy and Safety
 
 Terminal tasks and logs can contain paths, environment variables, command output, and credentials. The intended MVP will run locally and should redact known secret patterns in generated reports. Do not publish task artifacts or reports until they have been reviewed for sensitive information.
+
+`check --build` executes the task's Docker build instructions on the local machine. Run it only for task definitions you trust: image builds may access the network and execute build-time commands. The subsequent smoke containers are run with `--network none`, but that isolation does not apply to the build stage.
 
 ## Contributing
 
