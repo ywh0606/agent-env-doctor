@@ -42,6 +42,8 @@ python -m venv .venv
 
 默认情况下，`check` 会验证任务结构、Dockerfile/测试资源是否存在、Docker CLI 与 daemon 是否可用、主机磁盘/CPU 条件，以及指定的本地端口绑定；这些静态检查不会构建镜像或启动容器。启用 `--build` 后，它会构建任务镜像、以 `--network none` 启动 shell smoke 容器，并可在该镜像中检查每个 `--require-command` 指定的命令。`analyze` 会识别 JUnit XML、JSON 状态字段和部分基础设施/verifier 日志信号。它会先收集全部证据，再按 `INFRA_FAILURE`、`VERIFIER_FAILURE`、`AGENT_FAILURE`、`READY`、`INCONCLUSIVE` 的优先级分类；每个文本日志最多扫描 1 MB。
 
+JUnit 分析按 `tests - skipped` 统计实际执行的测试数。未执行任何测试（包括全部跳过）的报告判定为 `VERIFIER_FAILURE`。计数必须是非负整数，且每个参与统计的测试套件中，失败、错误与跳过的数量之和不能超过测试总数；无效计数同样判定为 `VERIFIER_FAILURE`，不能作为 Agent 失败或测试通过的证据。
+
 ## 要解决的问题
 
 Terminal-Bench 的一次运行失败，未必说明 Agent 能力不足：

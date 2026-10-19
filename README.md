@@ -42,6 +42,8 @@ python -m venv .venv
 
 By default, `check` validates task structure, Dockerfile/test asset presence, Docker CLI/daemon availability, host disk/CPU conditions, and any requested local port bindings. The static checks do not build an image or start a container. With `--build`, it builds the task image, starts a shell smoke container with `--network none`, and can verify each requested `--require-command` inside that image. `analyze` recognizes JUnit XML, JSON status fields, and selected infrastructure/verifier log signals. It collects evidence before classifying it, with the precedence `INFRA_FAILURE`, `VERIFIER_FAILURE`, `AGENT_FAILURE`, `READY`, then `INCONCLUSIVE`; it scans at most 1 MB from each text log.
 
+JUnit analysis counts executed tests as `tests - skipped`. A report with no executed tests, including one where every test was skipped, is `VERIFIER_FAILURE`. Counters must be non-negative integers, and the sum of failures, errors, and skipped tests must not exceed the test total in each counted suite; invalid counters are also `VERIFIER_FAILURE` rather than agent-failure or passing evidence.
+
 ## The Problem
 
 A Terminal-Bench run can fail for reasons unrelated to an agent's ability:
