@@ -31,6 +31,17 @@ def test_detects_verifier_failure_from_invalid_junit_counter(tmp_path):
     assert report.verdict is Verdict.VERIFIER_FAILURE
 
 
+def test_detects_agent_failure_from_json_records_after_first_record(tmp_path):
+    (tmp_path / "results.json").write_text(
+        '[{"status":"passed"},{"status":"failed"}]', encoding="utf-8"
+    )
+
+    report = analyze_run(str(tmp_path))
+
+    assert report.verdict is Verdict.AGENT_FAILURE
+    assert any("JSON reports `failed`" in finding.message for finding in report.findings)
+
+
 def test_detects_agent_failure_from_junit(tmp_path):
     (tmp_path / "results.xml").write_text(
         '<testsuite tests="2" failures="1" errors="0" />', encoding="utf-8"

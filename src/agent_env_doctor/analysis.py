@@ -91,20 +91,23 @@ def _junit_result(path: Path) -> tuple[int, int, str | None]:
     return tests, failures, None
 
 
-def _json_status(path: Path) -> str | None:
+def _json_statuses(path: Path) -> list[str]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return None
+        return []
     records = payload if isinstance(payload, list) else [payload]
+    statuses: list[str] = []
     for record in records:
         if not isinstance(record, dict):
             continue
         for key in ("verdict", "status", "result", "outcome"):
             value = record.get(key)
             if isinstance(value, str):
-                return value.lower()
-    return None
+                status = value.lower()
+                if status not in statuses:
+                    statuses.append(status)
+    return statuses
 
 
 def _contains_any(text: str, patterns: tuple[str, ...]) -> str | None:
@@ -192,29 +195,29 @@ def analyze_run(run_directory: str) -> DiagnosticReport:
         else:
             junit_passed = True
 
+    status_verdicts = {
+        "infra_failure": Verdict.INFRA_FAILURE,
+        "infrastructure_failure": Verdict.INFRA_FAILURE,
+        "environment_failure": Verdict.INFRA_FAILURE,
+        "verifier_failure": Verdict.VERIFIER_FAILURE,
+        "verifier_error": Verdict.VERIFIER_FAILURE,
+        "agent_failure": Verdict.AGENT_FAILURE,
+        "failed": Verdict.AGENT_FAILURE,
+        "failure": Verdict.AGENT_FAILURE,
+    }
     for path in sorted(run_dir.rglob("*.json")):
-        status = _json_status(path)
-        status_verdicts = {
-            "infra_failure": Verdict.INFRA_FAILURE,
-            "infrastructure_failure": Verdict.INFRA_FAILURE,
-            "environment_failure": Verdict.INFRA_FAILURE,
-            "verifier_failure": Verdict.VERIFIER_FAILURE,
-            "verifier_error": Verdict.VERIFIER_FAILURE,
-            "agent_failure": Verdict.AGENT_FAILURE,
-            "failed": Verdict.AGENT_FAILURE,
-            "failure": Verdict.AGENT_FAILURE,
-        }
-        verdict = status_verdicts.get(status)
-        if verdict:
-            evidence_verdicts.add(verdict)
-            findings.append(
-                Finding(
-                    severity=Severity.FAIL,
-                    check="run result",
-                    message=f"JSON reports `{status}`.",
-                    evidence=[str(path)],
+        for status in _json_statuses(path):
+            verdict = status_verdicts.get(status)
+            if verdict:
+                evidence_verdicts.add(verdict)
+                findings.append(
+                    Finding(
+                        severity=Severity.FAIL,
+                        check="run result",
+                        message=f"JSON reports `{status}`.",
+                        evidence=[str(path)],
+                    )
                 )
-            )
 
     for verdict in (
         Verdict.INFRA_FAILURE,
