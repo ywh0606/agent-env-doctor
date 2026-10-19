@@ -75,7 +75,21 @@ def _junit_result(path: Path) -> tuple[int, int, str | None]:
         root = element_tree.parse(path).getroot()
     except (OSError, element_tree.ParseError) as error:
         return 0, 0, f"Invalid JUnit XML: {error}"
-    suites = [root] if root.tag == "testsuite" else list(root.findall(".//testsuite"))
+    if root.tag == "testsuite":
+        suites = [root]
+    elif root.tag == "testsuites" and "tests" in root.attrib:
+        suites = [root]
+    else:
+        suites = []
+
+        def collect_top_level_suites(parent):
+            for child in parent:
+                if child.tag == "testsuite":
+                    suites.append(child)
+                else:
+                    collect_top_level_suites(child)
+
+        collect_top_level_suites(root)
     if not suites:
         return 0, 0, "JUnit XML contains no testsuite elements."
     try:
