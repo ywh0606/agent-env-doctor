@@ -92,12 +92,21 @@ def _junit_result(path: Path) -> tuple[int, int, str | None]:
         collect_top_level_suites(root)
     if not suites:
         return 0, 0, "JUnit XML contains no testsuite elements."
+    tests = 0
+    failures = 0
     try:
-        tests = sum(int(suite.attrib.get("tests", "0")) for suite in suites)
-        failures = sum(
-            int(suite.attrib.get("failures", "0")) + int(suite.attrib.get("errors", "0"))
-            for suite in suites
-        )
+        for suite in suites:
+            counters = {
+                name: int(suite.attrib.get(name, "0"))
+                for name in ("tests", "failures", "errors", "skipped")
+            }
+            if any(value < 0 for value in counters.values()):
+                return 0, 0, "Invalid JUnit counters: counts must be non-negative."
+            suite_failures = counters["failures"] + counters["errors"]
+            if suite_failures + counters["skipped"] > counters["tests"]:
+                return 0, 0, "Invalid JUnit counters: failures, errors, and skipped exceed tests."
+            tests += counters["tests"] - counters["skipped"]
+            failures += suite_failures
     except ValueError as error:
         return 0, 0, f"Invalid JUnit counters: {error}"
     if tests <= 0:
