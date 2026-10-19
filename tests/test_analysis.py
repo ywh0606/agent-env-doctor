@@ -95,6 +95,24 @@ def test_docker_documentation_text_does_not_override_passing_junit(tmp_path):
     assert report.verdict is Verdict.READY
 
 
+def test_junit_nested_suite_uses_aggregate_counters_once(tmp_path):
+    (tmp_path / "results.xml").write_text(
+        '<testsuites tests="3" failures="1" errors="0">'
+        '<testsuite tests="3" failures="1" errors="0">'
+        '<testsuite tests="3" failures="1" errors="0" />'
+        '</testsuite></testsuites>',
+        encoding="utf-8",
+    )
+
+    report = analyze_run(str(tmp_path))
+
+    assert report.verdict is Verdict.AGENT_FAILURE
+    assert any(
+        "Parsed 3 tests with 1 failures or errors." in finding.message
+        for finding in report.findings
+    )
+
+
 def test_junit_without_executed_tests_is_a_verifier_failure(tmp_path):
     (tmp_path / "results.xml").write_text(
         '<testsuite errors="1" failures="0" />', encoding="utf-8"
